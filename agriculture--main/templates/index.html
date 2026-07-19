@@ -468,12 +468,10 @@ Ready.
             container.innerHTML = LOGS.map((log, index) => {
                 const isSystemInit = log.id === "SYS-INIT";
                 const statusClass = isSystemInit ? "bg-white/10 text-white" : "bg-brand-red/10 text-brand-red";
-                const glowClass = (index === 0 && !isSystemInit) ? "glass-panel p-4 relative overflow-hidden red-glow" : "bg-surface/30 border border-white/5 p-4";
-                const scanline = (index === 0 && !isSystemInit) ? `<div class="scanning-line"></div>` : '';
+                const glowClass = (index === 0 && !isSystemInit) ? "glass-panel p-4 red-glow" : "bg-surface/30 border border-white/5 p-4";
                 
                 return `
                     <div class="${glowClass} transition-all hover:bg-surface/40">
-                        ${scanline}
                         <div class="flex justify-between items-start mb-3">
                             <div class="flex flex-col">
                                 <span class="text-on-surface/40 font-mono text-[10px] uppercase">[${log.id}]</span>
