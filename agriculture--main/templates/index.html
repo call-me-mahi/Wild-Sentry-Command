@@ -668,6 +668,14 @@ System state: NOMINAL. Monitoring actively.
             const storedUrl = localStorage.getItem('backend_url') || '';
             document.getElementById('input-backend-url').value = storedUrl;
             
+            // Check for HTTPS mixed content block warning
+            if (window.location.protocol === 'https:' && storedUrl.startsWith('http://')) {
+                const diag = document.getElementById('sys-diagnostic-logs');
+                if (diag) {
+                    diag.innerHTML += `\n[SECURITY WARNING] Browser blocks HTTP requests to "${storedUrl}" because this page is loaded over secure HTTPS. Please use an HTTPS tunnel (e.g. ngrok) or clear the override to use the Render backend.`;
+                }
+            }
+
             // Set initial video stream src
             document.getElementById('video-stream').src = getBackendUrl('/video_feed');
 
