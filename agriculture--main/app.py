@@ -327,7 +327,9 @@ def index():
 
 @app.route('/video_feed')
 def video_feed():
-    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    response = Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    response.headers['X-Accel-Buffering'] = 'no'
+    return response
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
