@@ -513,6 +513,12 @@ Ready.
         // Access Browser Webcam (Robust Multi-Stage Fallback)
         async function initCamera() {
             const video = document.getElementById('video-stream');
+            
+            // Check for insecure context (HTTP blocks camera in modern browsers)
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                document.getElementById('sys-diagnostic-logs').innerText += `\n[SECURITY WARNING] Modern browsers block camera access on insecure connections (HTTP). Please access using HTTPS: https://wild-sentry-command.onrender.com`;
+            }
+
             try {
                 // Try 1: Ideal facingMode (Best for mobile front/back camera selection)
                 localStream = await navigator.mediaDevices.getUserMedia({
@@ -544,18 +550,25 @@ Ready.
             if (localStream) {
                 try {
                     video.srcObject = localStream;
-                    video.onloadedmetadata = () => {
-                        video.play();
+                    
+                    // Directly call play() (bypassing flakey onloadedmetadata event on mobile Safari)
+                    video.play().then(() => {
                         STATUS.camera_connected = true;
                         updateUIStatus();
                         document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Webcam (${currentFacingMode}) connected successfully.`;
                         
-                        // Cancel simulation grid loop and start camera AI loop
                         clearInterval(simInterval);
                         startDetectionLoop();
-                    };
+                    }).catch(playErr => {
+                        console.warn("video.play() promise rejected (likely browser autoplay block):", playErr);
+                        // Fallback: start loop anyway since the stream is bound
+                        STATUS.camera_connected = true;
+                        updateUIStatus();
+                        clearInterval(simInterval);
+                        startDetectionLoop();
+                    });
                 } catch (playErr) {
-                    console.error("Failed to play video elements:", playErr);
+                    console.error("Failed to setup video element stream src:", playErr);
                 }
             } else {
                 document.getElementById('sys-diagnostic-logs').innerText += `\n[WARNING] Webcam not accessible. Operating in simulation mode.`;
