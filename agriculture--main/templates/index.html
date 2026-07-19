@@ -962,11 +962,11 @@ Ready.
             renderLogs();
             updateUIStatus();
             
-            // Load TensorFlow coco-ssd model
-            await loadModel();
+            // Load TensorFlow coco-ssd model (non-blocking)
+            loadModel();
             
-            // Start local browser camera
-            await initCamera();
+            // Start local browser camera (non-blocking)
+            initCamera();
             
             // Log interaction vibration
             const btns = document.querySelectorAll('button, a');
