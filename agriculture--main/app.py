@@ -1,7 +1,10 @@
+import os
+# Suppress scary OpenCV warning logs in the terminal
+os.environ["OPENCV_LOG_LEVEL"] = "OFF"
+
 import cv2
 import time
 import threading
-import os
 import numpy as np
 from datetime import datetime
 from flask import Flask, render_template, Response, jsonify, request
