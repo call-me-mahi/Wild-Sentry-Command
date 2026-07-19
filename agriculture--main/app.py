@@ -209,8 +209,10 @@ def gen_frames():
 
         ret, frame = cap.read()
         if not ret:
-            print("[ERROR] Camera frame capture failed")
+            print("[ERROR] Camera frame capture failed. Yielding simulated feed.")
             STATUS["camera_connected"] = False
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + generate_fallback_frame() + b'\r\n')
             time.sleep(0.1)
             continue
             
