@@ -503,7 +503,7 @@ Ready.
             const video = document.getElementById('video-stream');
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 640, height: 480, facingMode: "environment" }
+                    video: { width: { ideal: 640 }, height: { ideal: 480 } }
                 });
                 video.srcObject = localStream;
                 video.onloadedmetadata = () => {
