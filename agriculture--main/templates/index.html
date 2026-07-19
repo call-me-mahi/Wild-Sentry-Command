@@ -420,8 +420,8 @@ Ready.
         ];
 
         // HTML5 Audio Elements preloaded from DOM with native fallbacks
-        const beeAudio = document.getElementById('sound-bees');
-        const tigerAudio = document.getElementById('sound-tiger');
+        let beeAudio = null;
+        let tigerAudio = null;
 
         let localStream = null;
         let cocoModel = null;
@@ -525,6 +525,13 @@ Ready.
             }
         }
 
+        function stopWebcam() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+        }
+
         // Toggle Video Stream state
         function toggleCamera(enable) {
             CONFIG.camera_enabled = enable;
@@ -538,6 +545,8 @@ Ready.
                 }
             } else {
                 video.pause();
+                stopWebcam();
+                video.srcObject = null;
                 document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Video stream paused.`;
             }
         }
@@ -904,6 +913,8 @@ Ready.
 
         // Initialize Everything on window load
         window.addEventListener('load', async () => {
+            beeAudio = document.getElementById('sound-bees');
+            tigerAudio = document.getElementById('sound-tiger');
             renderLogs();
             updateUIStatus();
             
