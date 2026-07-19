@@ -1,12 +1,18 @@
 import cv2
 import time
 import threading
-import winsound
 import os
 import numpy as np
 from datetime import datetime
 from flask import Flask, render_template, Response, jsonify, request
 from ultralytics import YOLO
+
+# Import winsound conditionally (Windows only)
+try:
+    import winsound
+    HAS_WINSOUND = True
+except ImportError:
+    HAS_WINSOUND = False
 
 app = Flask(__name__)
 
@@ -92,17 +98,21 @@ def play_sound_async(path):
     def _play():
         if os.path.exists(path):
             try:
-                winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC)
-                print(f"[INFO] Playing deterrent sound: {path}")
+                if HAS_WINSOUND:
+                    winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+                    print(f"[INFO] Playing deterrent sound: {path}")
+                else:
+                    print(f"[INFO] Playing deterrent sound (MOCK on non-Windows): {path}")
             except Exception as e:
-                print(f"[ERROR] winsound failed: {e}")
+                print(f"[ERROR] Sound play failed: {e}")
         else:
             print(f"[ERROR] Sound file missing: {path}")
     threading.Thread(target=_play, daemon=True).start()
 
 def stop_sounds():
     try:
-        winsound.PlaySound(None, winsound.SND_PURGE)
+        if HAS_WINSOUND:
+            winsound.PlaySound(None, winsound.SND_PURGE)
         print("[INFO] All sounds stopped / muted")
     except Exception as e:
         print(f"[ERROR] Failed to stop sounds: {e}")
