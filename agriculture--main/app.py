@@ -7,7 +7,7 @@ import time
 import threading
 import numpy as np
 from datetime import datetime
-from flask import Flask, render_template, Response, jsonify, request
+from flask import Flask, render_template, Response, jsonify, request, send_from_directory
 from ultralytics import YOLO
 
 # Import winsound conditionally (Windows only)
@@ -330,6 +330,10 @@ def video_feed():
     response = Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
     response.headers['X-Accel-Buffering'] = 'no'
     return response
+
+@app.route('/sounds/<path:filename>')
+def serve_sound(filename):
+    return send_from_directory(SOUNDS_DIR, filename)
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
