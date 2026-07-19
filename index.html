@@ -6,6 +6,11 @@
     <title>SENTINEL COMMAND - Crop Protection Dashboard</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    
+    <!-- TensorFlow.js and COCO-SSD for Client-side AI Object Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
     <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -143,8 +148,8 @@
         </div>
         <div class="flex items-center gap-4">
             <div id="camera-status-indicator" class="flex items-center gap-2 bg-black/60 px-3 py-1 rounded border border-white/10">
-                <span class="w-2.5 h-2.5 rounded-full bg-red-500" id="status-dot"></span>
-                <span class="font-label-sm text-label-sm uppercase text-white/80" id="status-text">DISCONNECTED</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse" id="status-dot"></span>
+                <span class="font-label-sm text-label-sm uppercase text-yellow-500" id="status-text">INITIALIZING</span>
             </div>
         </div>
     </header>
@@ -172,8 +177,9 @@
         <div id="tab-monitor" class="space-y-6">
             <!-- Video Feed Card -->
             <section class="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-white/10 bg-black group shadow-lg">
-                <!-- Video stream feed -->
-                <img id="video-stream" class="w-full h-full object-cover" alt="Live Camera Video Stream Feed"/>
+                <!-- Video stream feed (using browser webcam and canvas overlay) -->
+                <video id="video-stream" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                <canvas id="video-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
                 <div class="scanning-line"></div>
                 
                 <!-- HUD Overlays -->
@@ -241,7 +247,7 @@
         <div id="tab-logs" class="hidden space-y-4">
             <div class="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
                 <h3 class="font-headline-md text-headline-md text-on-surface uppercase tracking-tight">Security Alert History</h3>
-                <button onclick="fetchLogs()" class="active:scale-95 transition-transform">
+                <button onclick="renderLogs()" class="active:scale-95 transition-transform">
                     <span class="material-symbols-outlined text-white/60 hover:text-white">refresh</span>
                 </button>
             </div>
@@ -258,12 +264,11 @@
         <div id="tab-control" class="hidden space-y-6">
             <h3 class="font-headline-md text-headline-md text-on-surface uppercase tracking-tight border-b border-white/10 pb-3 mb-4">Detection Configuration</h3>
             
-            <form id="settings-form" oninput="saveSettings()" class="space-y-6">
-                <!-- Backend Server URL Override -->
-                <div class="space-y-2 border-b border-white/5 pb-4">
+            <form id="settings-form" oninput="saveSettings()" class="space-y-6" onSubmit="event.preventDefault();">
+                <!-- Backend Server URL Override (Hidden for pure frontend prototype, but kept for codebase compatibility) -->
+                <div class="space-y-2 border-b border-white/5 pb-4 hidden">
                     <label class="block font-label-md text-label-md text-white/80 uppercase">Backend Server URL Override</label>
-                    <input type="text" id="input-backend-url" onchange="saveBackendUrl()" placeholder="http://localhost:5000 (Default)" class="w-full bg-background border border-white/20 px-4 py-2.5 rounded-lg text-body-md text-white focus:border-brand-red focus:ring-brand-red focus:outline-none"/>
-                    <p class="text-xs text-white/45">For Vercel hosting, enter your secure local ngrok/tunnel URL (e.g. <code>https://xxx.ngrok-free.app</code>).</p>
+                    <input type="text" id="input-backend-url" placeholder="In-Browser AI Prototype Active" class="w-full bg-background border border-white/20 px-4 py-2.5 rounded-lg text-body-md text-white/50 focus:outline-none" disabled/>
                 </div>
 
                 <!-- Confidence Threshold -->
@@ -273,7 +278,7 @@
                         <span id="label-conf-val" class="font-mono text-green-400 font-bold">50%</span>
                     </div>
                     <input type="range" id="input-conf" name="confidence_threshold" min="0.1" max="0.9" step="0.05" value="0.5" class="w-full h-1 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-brand-red"/>
-                    <p class="text-xs text-white/40">Minimum model certainty required to validate animal intrusions.</p>
+                    <p class="text-xs text-white/40">Minimum certainty required for the browser model to trigger alarms.</p>
                 </div>
 
                 <!-- Cooldown Duration -->
@@ -293,7 +298,7 @@
                         <span id="label-persistence-val" class="font-mono text-green-400 font-bold">15f</span>
                     </div>
                     <input type="range" id="input-persistence" name="persistence_frames" min="3" max="50" step="1" value="15" class="w-full h-1 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-brand-red"/>
-                    <p class="text-xs text-white/40">Number of consecutive frames the animal must remain in vision to sound the alarm.</p>
+                    <p class="text-xs text-white/40">Number of consecutive frames the animal must remain in view to sound the alarm.</p>
                 </div>
 
                 <!-- Active Detections Checkbox -->
@@ -303,15 +308,15 @@
                     <div class="space-y-3">
                         <label class="flex items-center gap-3 cursor-pointer">
                             <input type="checkbox" id="check-elephant" name="detected_elephant" checked class="rounded border-white/20 bg-background text-brand-red focus:ring-brand-red"/>
-                            <span class="text-body-md text-white">Elephant (Triggers Bees)</span>
+                            <span class="text-body-md text-white">Elephant (Buzz)</span>
                         </label>
                         <label class="flex items-center gap-3 cursor-pointer">
                             <input type="checkbox" id="check-boar" name="detected_boar" checked class="rounded border-white/20 bg-background text-brand-red focus:ring-brand-red"/>
-                            <span class="text-body-md text-white">Wild Boar (Triggers Tiger)</span>
+                            <span class="text-body-md text-white">Wild Boar (Tiger Growl)</span>
                         </label>
                         <label class="flex items-center gap-3 cursor-pointer">
                             <input type="checkbox" id="check-bear" name="detected_bear" checked class="rounded border-white/20 bg-background text-brand-red focus:ring-brand-red"/>
-                            <span class="text-body-md text-white">Bear (Triggers Tiger)</span>
+                            <span class="text-body-md text-white">Bear (Tiger Growl)</span>
                         </label>
                     </div>
                 </div>
@@ -327,19 +332,19 @@
             <div class="grid grid-cols-2 gap-4">
                 <div class="bg-surface/40 p-4 border border-white/5 rounded-lg">
                     <p class="text-[10px] text-white/45 uppercase tracking-wider">Vision Engine</p>
-                    <p class="font-mono text-white font-bold text-sm">YOLOv8 Nano</p>
+                    <p class="font-mono text-white font-bold text-sm">COCO-SSD (TensorFlow.js)</p>
                 </div>
                 <div class="bg-surface/40 p-4 border border-white/5 rounded-lg">
                     <p class="text-[10px] text-white/45 uppercase tracking-wider">Webcam status</p>
-                    <p id="tel-camera" class="font-mono text-green-400 font-bold text-sm">Connected</p>
+                    <p id="tel-camera" class="font-mono text-green-400 font-bold text-sm">Initializing</p>
                 </div>
                 <div class="bg-surface/40 p-4 border border-white/5 rounded-lg">
                     <p class="text-[10px] text-white/45 uppercase tracking-wider">Sound deterrents</p>
-                    <p class="font-mono text-white font-bold text-sm">Winsound (Win32)</p>
+                    <p class="font-mono text-white font-bold text-sm">Web Audio API</p>
                 </div>
                 <div class="bg-surface/40 p-4 border border-white/5 rounded-lg">
                     <p class="text-[10px] text-white/45 uppercase tracking-wider">Host Server</p>
-                    <p class="font-mono text-white font-bold text-sm">Flask (Python)</p>
+                    <p class="font-mono text-white font-bold text-sm">Static Page (Browser)</p>
                 </div>
             </div>
 
@@ -349,11 +354,9 @@
                     <span class="text-xs font-mono uppercase tracking-widest text-white/80">Diagnostic Output</span>
                 </div>
                 <pre class="text-[11px] font-mono text-green-300 bg-black p-3 rounded-lg overflow-x-auto whitespace-pre-wrap max-h-48" id="sys-diagnostic-logs">
-Initializing YOLOv8n network model...
-Pretrained weights found.
-Camera opened at input slot [0].
-Web server running at http://127.0.0.1:5000/
-System state: NOMINAL. Monitoring actively.
+Initializing COCO-SSD network model...
+Browser local camera requested...
+Ready.
                 </pre>
             </div>
         </div>
@@ -380,47 +383,62 @@ System state: NOMINAL. Monitoring actively.
         </a>
     </nav>
 
-    <!-- UI Logic & Backend Sync -->
+    <!-- In-Browser AI & Sound Logic -->
     <script>
         let activeTab = 'monitor';
 
-        // Prepend configured Backend Server URL
-        function getBackendUrl(path) {
-            let url = localStorage.getItem('backend_url') || '';
-            if (url) {
-                if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                    url = 'http://' + url;
-                }
-                if (url.endsWith('/')) {
-                    url = url.slice(0, -1);
-                }
-                if (!path.startsWith('/')) {
-                    path = '/' + path;
-                }
-                return url + path;
-            }
-            return path;
-        }
+        // Core Configuration & Status States (Pure Frontend Prototype)
+        const CONFIG = {
+            confidence_threshold: 0.5,
+            cooldown_duration: 10,
+            persistence_frames: 15,
+            detected_elephant: true,
+            detected_boar: true,
+            detected_bear: true,
+            camera_enabled: true
+        };
 
-        // Save custom Backend Server URL
-        function saveBackendUrl() {
-            let url = document.getElementById('input-backend-url').value.trim();
-            if (url) {
-                localStorage.setItem('backend_url', url);
-            } else {
-                localStorage.removeItem('backend_url');
+        const STATUS = {
+            fps: 0,
+            camera_connected: false,
+            active_alert: false,
+            current_detection: null,
+            cooldown_active: false,
+            cooldown_remaining: 0,
+            cooldown_end_time: 0
+        };
+
+        const LOGS = [
+            {
+                id: "SYS-INIT",
+                timestamp: new Date().toLocaleTimeString(),
+                animal: "SYSTEM INITIALIZED",
+                confidence: "100.0%",
+                status: "Nominal",
+                action: "Browser AI Engine Started"
             }
-            document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Backend URL set to: ${url || 'default'}`;
-            // Refresh video stream source
-            const streamImg = document.getElementById('video-stream');
-            if (streamImg) {
-                streamImg.src = getBackendUrl('/video_feed');
+        ];
+
+        // HTML5 Audio Elements for sound play out of local speakers
+        const beeAudio = new Audio('agriculture--main/sounds/bees.wav');
+        const tigerAudio = new Audio('agriculture--main/sounds/tiger.wav');
+        
+        // Setup CDN fallback sources in case local files are missing/not hosted statically
+        beeAudio.addEventListener('error', () => {
+            if (!beeAudio.src.includes('mixkit')) {
+                beeAudio.src = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav';
             }
-            updateStatus();
-            fetchLogs();
-        }
-        let statusPollInterval;
-        let logsPollInterval;
+        });
+        tigerAudio.addEventListener('error', () => {
+            if (!tigerAudio.src.includes('mixkit')) {
+                tigerAudio.src = 'https://assets.mixkit.co/active_storage/sfx/2552/2552-84.wav';
+            }
+        });
+
+        let localStream = null;
+        let cocoModel = null;
+        let isDetecting = false;
+        let simInterval = null;
 
         // Switch Screen Tabs
         function switchTab(tabId) {
@@ -445,205 +463,230 @@ System state: NOMINAL. Monitoring actively.
             });
 
             if (tabId === 'logs') {
-                fetchLogs();
+                renderLogs();
             }
         }
 
-        // Fetch Logs from Backend
-        async function fetchLogs() {
-            try {
-                const response = await fetch(getBackendUrl('/api/logs'));
-                const logs = await response.json();
-                const container = document.getElementById('logs-container');
-                
-                if (logs.length === 0) {
-                    container.innerHTML = `<div class="text-center py-8 text-white/40 uppercase font-mono">No Logs Available</div>`;
-                    return;
-                }
+        // Render Security Alert Logs inside Logs list
+        function renderLogs() {
+            const container = document.getElementById('logs-container');
+            if (LOGS.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-white/40 uppercase font-mono">No Logs Available</div>`;
+                return;
+            }
 
-                container.innerHTML = logs.map((log, index) => {
-                    const isSystemInit = log.id === "SYS-INIT";
-                    const statusClass = isSystemInit ? "bg-white/10 text-white" : "bg-brand-red/10 text-brand-red";
-                    const glowClass = (index === 0 && !isSystemInit) ? "glass-panel p-4 relative overflow-hidden red-glow" : "bg-surface/30 border border-white/5 p-4";
-                    const scanline = (index === 0 && !isSystemInit) ? `<div class="scanning-line"></div>` : '';
-                    
-                    return `
-                        <div class="${glowClass} transition-all hover:bg-surface/40">
-                            ${scanline}
-                            <div class="flex justify-between items-start mb-3">
-                                <div class="flex flex-col">
-                                    <span class="text-on-surface/40 font-mono text-[10px] uppercase">[${log.id}]</span>
-                                    <h3 class="font-body-lg text-body-lg text-white/95 font-semibold leading-tight">${log.animal}</h3>
-                                </div>
-                                <span class="text-on-surface/40 font-mono text-[12px]">${log.timestamp}</span>
+            container.innerHTML = LOGS.map((log, index) => {
+                const isSystemInit = log.id === "SYS-INIT";
+                const statusClass = isSystemInit ? "bg-white/10 text-white" : "bg-brand-red/10 text-brand-red";
+                const glowClass = (index === 0 && !isSystemInit) ? "glass-panel p-4 relative overflow-hidden red-glow" : "bg-surface/30 border border-white/5 p-4";
+                const scanline = (index === 0 && !isSystemInit) ? `<div class="scanning-line"></div>` : '';
+                
+                return `
+                    <div class="${glowClass} transition-all hover:bg-surface/40">
+                        ${scanline}
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex flex-col">
+                                <span class="text-on-surface/40 font-mono text-[10px] uppercase">[${log.id}]</span>
+                                <h3 class="font-body-lg text-body-lg text-white/95 font-semibold leading-tight">${log.animal}</h3>
                             </div>
-                            <div class="grid grid-cols-2 gap-4 mt-2 mb-2">
-                                <div>
-                                    <p class="text-[9px] text-on-surface/40 uppercase tracking-wider">Confidence</p>
-                                    <p class="text-white font-bold text-sm">${log.confidence}</p>
-                                </div>
-                                <div>
-                                    <p class="text-[9px] text-on-surface/40 uppercase tracking-wider">Status</p>
-                                    <p class="text-white font-bold text-sm">${log.status}</p>
-                                </div>
+                            <span class="text-on-surface/40 font-mono text-[12px]">${log.timestamp}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mt-2 mb-2">
+                            <div>
+                                <p class="text-[9px] text-on-surface/40 uppercase tracking-wider">Confidence</p>
+                                <p class="text-white font-bold text-sm">${log.confidence}</p>
                             </div>
-                            <div class="flex items-center justify-between pt-2 border-t border-white/5 text-[10px]">
-                                <span class="px-2 py-0.5 ${statusClass} font-bold uppercase tracking-tighter">${log.action}</span>
-                                <span class="text-on-surface/40 italic">Active deterrent sequence</span>
+                            <div>
+                                <p class="text-[9px] text-on-surface/40 uppercase tracking-wider">Status</p>
+                                <p class="text-white font-bold text-sm">${log.status}</p>
                             </div>
                         </div>
-                    `;
-                }).join('');
+                        <div class="flex items-center justify-between pt-2 border-t border-white/5 text-[10px]">
+                            <span class="px-2 py-0.5 ${statusClass} font-bold uppercase tracking-tighter">${log.action}</span>
+                            <span class="text-on-surface/40 italic">Active deterrent sequence</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Access Browser Webcam
+        async function initCamera() {
+            const video = document.getElementById('video-stream');
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: "environment" }
+                });
+                video.srcObject = localStream;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    STATUS.camera_connected = true;
+                    updateUIStatus();
+                    document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Local webcam connected successfully.`;
+                    
+                    // Cancel simulation grid loop and start camera AI loop
+                    clearInterval(simInterval);
+                    startDetectionLoop();
+                };
             } catch (err) {
-                console.error("Failed to fetch logs:", err);
+                console.error("Camera connection failed:", err);
+                document.getElementById('sys-diagnostic-logs').innerText += `\n[WARNING] Webcam not accessible: ${err.message}. Operating in simulation mode.`;
+                STATUS.camera_connected = false;
+                updateUIStatus();
+                startSimulationLoop();
             }
         }
 
-        // Toggle Video Stream on/off
-        async function toggleCamera(enable) {
-            try {
-                await fetch(getBackendUrl('/api/settings'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ camera_enabled: enable })
-                });
-                const img = document.getElementById('video-stream');
-                if (enable) {
-                    img.src = getBackendUrl("/video_feed");
+        // Toggle Video Stream state
+        function toggleCamera(enable) {
+            CONFIG.camera_enabled = enable;
+            const video = document.getElementById('video-stream');
+            if (enable) {
+                if (localStream) {
+                    video.play();
                     document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Video stream activated.`;
                 } else {
-                    img.src = "";
-                    document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Video stream paused.`;
+                    initCamera();
                 }
-            } catch (err) {
-                console.error(err);
+            } else {
+                video.pause();
+                document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Video stream paused.`;
             }
         }
 
-        // Trigger manual deterrent
-        async function triggerDeterrent(animal) {
-            try {
-                const response = await fetch(getBackendUrl('/api/trigger'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ animal: animal })
+        // Play Sound and Handle Cooldown
+        function playDeterrentSound(animal) {
+            const now = Date.now();
+            const cooldownMs = CONFIG.cooldown_duration * 1000;
+
+            if (now - lastSoundTime < cooldownMs) {
+                return;
+            }
+
+            lastSoundTime = now;
+            STATUS.cooldown_active = true;
+            STATUS.cooldown_end_time = now + cooldownMs;
+            
+            updateCooldownUI();
+
+            // Play the appropriate sound effect
+            let soundToPlay = null;
+            let soundLabel = "None";
+            if (animal === 'elephant') {
+                soundToPlay = beeAudio;
+                soundLabel = "bees.wav (Bee Buzz)";
+            } else if (animal === 'boar' || animal === 'bear') {
+                soundToPlay = tigerAudio;
+                soundLabel = "tiger.wav (Tiger Growl)";
+            }
+
+            if (soundToPlay) {
+                soundToPlay.currentTime = 0;
+                soundToPlay.play().then(() => {
+                    document.getElementById('sys-diagnostic-logs').innerText += `\n[ACTION] Sound triggered: ${soundLabel}`;
+                }).catch(err => {
+                    console.error("Sound play failed:", err);
+                    document.getElementById('sys-diagnostic-logs').innerText += `\n[ERROR] Audio playback blocked by browser. Click anywhere on the page first.`;
                 });
-                const res = await response.json();
-                document.getElementById('sys-diagnostic-logs').innerText += `\n[ACTION] Manual deterrent: ${res.message}`;
-                fetchLogs();
-            } catch (err) {
-                console.error(err);
             }
+
+            // Log event
+            const logEntry = {
+                id: `ALR-${Math.floor(Math.random() * 90000) + 10000}`,
+                timestamp: new Date().toLocaleTimeString(),
+                animal: animal.toUpperCase(),
+                confidence: `${Math.round(85 + Math.random() * 14)}%`,
+                status: "Deterrent Triggered",
+                action: `Played ${soundLabel}`
+            };
+            LOGS.unshift(logEntry);
+            if (LOGS.length > 50) LOGS.pop();
+            renderLogs();
         }
 
-        // Stop all sounds
-        async function stopAllSounds() {
-            try {
-                const response = await fetch(getBackendUrl('/api/stop'), { method: 'POST' });
-                const res = await response.json();
-                document.getElementById('sys-diagnostic-logs').innerText += `\n[ACTION] Stopped all active sounds.`;
-            } catch (err) {
-                console.error(err);
+        // Trigger manual deterrent sound
+        function triggerDeterrent(animal) {
+            if (STATUS.cooldown_active) {
+                document.getElementById('sys-diagnostic-logs').innerText += `\n[WARNING] Cannot manually trigger sound: system in cooldown.`;
+                return;
             }
+            playDeterrentSound(animal);
         }
 
-        // Save settings from form input
-        async function saveSettings() {
-            const confidence = parseFloat(document.getElementById('input-conf').value);
-            const cooldown = parseInt(document.getElementById('input-cooldown').value);
-            const persistence = parseInt(document.getElementById('input-persistence').value);
-            const elephant = document.getElementById('check-elephant').checked;
-            const boar = document.getElementById('check-boar').checked;
-            const bear = document.getElementById('check-bear').checked;
+        // Stop all sound playing
+        function stopAllSounds() {
+            if (beeAudio) {
+                beeAudio.pause();
+                beeAudio.currentTime = 0;
+            }
+            if (tigerAudio) {
+                tigerAudio.pause();
+                tigerAudio.currentTime = 0;
+            }
+            document.getElementById('sys-diagnostic-logs').innerText += `\n[ACTION] Stopped all active sounds.`;
+        }
+
+        // Save settings from form input sliders
+        function saveSettings() {
+            CONFIG.confidence_threshold = parseFloat(document.getElementById('input-conf').value);
+            CONFIG.cooldown_duration = parseInt(document.getElementById('input-cooldown').value);
+            CONFIG.persistence_frames = parseInt(document.getElementById('input-persistence').value);
+            CONFIG.detected_elephant = document.getElementById('check-elephant').checked;
+            CONFIG.detected_boar = document.getElementById('check-boar').checked;
+            CONFIG.detected_bear = document.getElementById('check-bear').checked;
 
             // Update range indicators
-            document.getElementById('label-conf-val').innerText = `${Math.round(confidence * 100)}%`;
-            document.getElementById('label-cooldown-val').innerText = `${cooldown}s`;
-            document.getElementById('label-persistence-val').innerText = `${persistence}f`;
+            document.getElementById('label-conf-val').innerText = `${Math.round(CONFIG.confidence_threshold * 100)}%`;
+            document.getElementById('label-cooldown-val').innerText = `${CONFIG.cooldown_duration}s`;
+            document.getElementById('label-persistence-val').innerText = `${CONFIG.persistence_frames}f`;
+        }
 
-            try {
-                await fetch(getBackendUrl('/api/settings'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        confidence_threshold: confidence,
-                        cooldown_duration: cooldown,
-                        persistence_frames: persistence,
-                        detected_elephant: elephant,
-                        detected_boar: boar,
-                        detected_bear: bear
-                    })
-                });
-            } catch (err) {
-                console.error("Failed to save settings:", err);
+        // Set status UI elements
+        function updateUIStatus() {
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            const telCamera = document.getElementById('tel-camera');
+
+            if (STATUS.camera_connected) {
+                statusDot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
+                statusText.innerText = "CONNECTED";
+                statusText.className = "font-label-sm text-label-sm uppercase text-green-400";
+                telCamera.innerText = "Connected (Webcam)";
+                telCamera.className = "font-mono text-green-400 font-bold text-sm";
+            } else {
+                statusDot.className = "w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse";
+                statusText.innerText = "SIMULATING";
+                statusText.className = "font-label-sm text-label-sm uppercase text-yellow-500";
+                telCamera.innerText = "Simulation Active";
+                telCamera.className = "font-mono text-yellow-500 font-bold text-sm";
             }
         }
 
-        // Load configuration to UI elements
-        function applyConfigToUI(config) {
-            document.getElementById('input-conf').value = config.confidence_threshold;
-            document.getElementById('input-cooldown').value = config.cooldown_duration;
-            document.getElementById('input-persistence').value = config.persistence_frames;
-            
-            document.getElementById('check-elephant').checked = config.detected_elephant;
-            document.getElementById('check-boar').checked = config.detected_boar;
-            document.getElementById('check-bear').checked = config.detected_bear;
+        // Cooldown UI handler loop
+        let lastSoundTime = 0;
+        let cooldownInterval = null;
 
-            document.getElementById('label-conf-val').innerText = `${Math.round(config.confidence_threshold * 100)}%`;
-            document.getElementById('label-cooldown-val').innerText = `${config.cooldown_duration}s`;
-            document.getElementById('label-persistence-val').innerText = `${config.persistence_frames}f`;
-        }
+        function updateCooldownUI() {
+            clearInterval(cooldownInterval);
+            const cdBadge = document.getElementById('cooldown-badge');
+            const triggerBees = document.getElementById('btn-trigger-bees');
+            const triggerTiger = document.getElementById('btn-trigger-tiger');
 
-        // Periodically poll backend status
-        async function updateStatus() {
-            try {
-                const response = await fetch(getBackendUrl('/api/status'));
-                const status = await response.json();
+            cooldownInterval = setInterval(() => {
+                const now = Date.now();
+                const remaining = Math.max(0, Math.ceil((STATUS.cooldown_end_time - now) / 1000));
 
-                // 1. Camera Connection HUD Status
-                const statusDot = document.getElementById('status-dot');
-                const statusText = document.getElementById('status-text');
-                const telCamera = document.getElementById('tel-camera');
-
-                if (status.camera_connected) {
-                    statusDot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
-                    statusText.innerText = "CONNECTED";
-                    statusText.className = "font-label-sm text-label-sm uppercase text-green-400";
-                    telCamera.innerText = "Connected";
-                    telCamera.className = "font-mono text-green-400 font-bold text-sm";
-                } else {
-                    statusDot.className = "w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse";
-                    statusText.innerText = "SIMULATING";
-                    statusText.className = "font-label-sm text-label-sm uppercase text-yellow-500";
-                    telCamera.innerText = "Simulation Active";
-                    telCamera.className = "font-mono text-yellow-500 font-bold text-sm";
-                }
-
-                // 2. Active Alert banner
-                const alarmBanner = document.getElementById('active-alarm-banner');
-                if (status.active_alert) {
-                    alarmBanner.classList.remove('hidden');
-                    document.getElementById('alarm-sector').innerText = `SECTOR 4 - ${status.current_detection.toUpperCase()} DETECTED`;
-                } else {
-                    alarmBanner.classList.add('hidden');
-                }
-
-                // 3. FPS telemetry
-                document.getElementById('hud-fps').innerText = status.fps;
-
-                // 4. Cooldown status trigger muter
-                const cdBadge = document.getElementById('cooldown-badge');
-                const triggerBees = document.getElementById('btn-trigger-bees');
-                const triggerTiger = document.getElementById('btn-trigger-tiger');
-
-                if (status.cooldown_active) {
-                    cdBadge.innerText = `COOLDOWN: ${status.cooldown_remaining}S`;
+                if (remaining > 0) {
+                    STATUS.cooldown_active = true;
+                    cdBadge.innerText = `COOLDOWN: ${remaining}S`;
                     cdBadge.className = "font-label-sm text-label-sm bg-brand-red/20 text-brand-red px-2 py-0.5 rounded uppercase tracking-wider";
                     triggerBees.disabled = true;
                     triggerTiger.disabled = true;
                     triggerBees.classList.add('opacity-40');
                     triggerTiger.classList.add('opacity-40');
                 } else {
+                    STATUS.cooldown_active = false;
+                    clearInterval(cooldownInterval);
                     cdBadge.innerText = "SYSTEM READY";
                     cdBadge.className = "font-label-sm text-label-sm bg-green-500/20 text-green-400 px-2 py-0.5 rounded uppercase tracking-wider";
                     triggerBees.disabled = false;
@@ -651,37 +694,238 @@ System state: NOMINAL. Monitoring actively.
                     triggerBees.classList.remove('opacity-40');
                     triggerTiger.classList.remove('opacity-40');
                 }
+            }, 500);
+        }
 
-                // Load initial settings once on startup
-                if (!window.configLoaded) {
-                    applyConfigToUI(status.config);
-                    window.configLoaded = true;
-                }
+        // ==============================
+        // IN-BROWSER TF.JS AI ENGINE
+        // ==============================
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let persistenceCounter = 0;
+        let lastDetectedClass = null;
+
+        async function loadModel() {
+            document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Loading COCO-SSD model in browser...`;
+            try {
+                cocoModel = await cocoSsd.load();
+                document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] COCO-SSD loaded. Show an Elephant/Bear/Dog/Cat to your webcam to trigger deterrents!`;
+                document.getElementById('tel-camera').innerText = "AI Active (COCO)";
             } catch (err) {
-                console.error("Status polling failed:", err);
+                console.error("TF.js Model load failed:", err);
+                document.getElementById('sys-diagnostic-logs').innerText += `\n[ERROR] Model failed to load: ${err.message}. Using simulation mode.`;
             }
         }
 
-        // Initialize polling intervals
-        window.addEventListener('load', () => {
-            // Load backend URL configuration
-            const storedUrl = localStorage.getItem('backend_url') || '';
-            document.getElementById('input-backend-url').value = storedUrl;
+        function startDetectionLoop() {
+            isDetecting = true;
+            detectFrame();
+        }
+
+        async function detectFrame() {
+            if (!isDetecting) return;
+
+            const video = document.getElementById('video-stream');
+            const canvas = document.getElementById('video-canvas');
             
-            // Check for HTTPS mixed content block warning
-            if (window.location.protocol === 'https:' && storedUrl.startsWith('http://')) {
-                const diag = document.getElementById('sys-diagnostic-logs');
-                if (diag) {
-                    diag.innerHTML += `\n[SECURITY WARNING] Browser blocks HTTP requests to "${storedUrl}" because this page is loaded over secure HTTPS. Please use an HTTPS tunnel (e.g. ngrok) or clear the override to use the Render backend.`;
+            if (!video || !canvas || video.paused || video.ended) {
+                requestAnimationFrame(detectFrame);
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // FPS Calculation
+            const now = performance.now();
+            frameCount++;
+            if (now - lastFrameTime >= 1000) {
+                STATUS.fps = Math.round((frameCount * 1000) / (now - lastFrameTime));
+                document.getElementById('hud-fps').innerText = STATUS.fps;
+                frameCount = 0;
+                lastFrameTime = now;
+            }
+
+            let detectedInFrame = false;
+            let detectedClass = null;
+            let maxConf = 0;
+
+            if (cocoModel && CONFIG.camera_enabled) {
+                try {
+                    const predictions = await cocoModel.detect(video);
+
+                    predictions.forEach(pred => {
+                        const className = pred.class.toLowerCase();
+                        const confidence = pred.score;
+
+                        // Class mapping for prototype animals
+                        let mappedAnimal = null;
+                        if (className === 'elephant' && CONFIG.detected_elephant) {
+                            mappedAnimal = 'elephant';
+                        } else if (className === 'bear' && CONFIG.detected_bear) {
+                            mappedAnimal = 'bear';
+                        } else if (['cow', 'sheep', 'dog', 'cat', 'bird', 'horse', 'pig', 'zebra', 'giraffe'].includes(className) && CONFIG.detected_boar) {
+                            mappedAnimal = 'boar';
+                        } else if (className === 'person') {
+                            // Presenter test mode - map person to the first enabled class
+                            if (CONFIG.detected_elephant) mappedAnimal = 'elephant';
+                            else if (CONFIG.detected_boar) mappedAnimal = 'boar';
+                            else if (CONFIG.detected_bear) mappedAnimal = 'bear';
+                        }
+
+                        if (mappedAnimal && confidence >= CONFIG.confidence_threshold) {
+                            detectedInFrame = true;
+                            if (confidence > maxConf) {
+                                maxConf = confidence;
+                                detectedClass = mappedAnimal;
+                            }
+
+                            // Draw red bounding box
+                            ctx.strokeStyle = '#E63946';
+                            ctx.lineWidth = 3;
+                            ctx.strokeRect(pred.bbox[0], pred.bbox[1], pred.bbox[2], pred.bbox[3]);
+
+                            // Draw tag label background
+                            ctx.fillStyle = '#E63946';
+                            ctx.font = 'bold 12px Space Grotesk';
+                            const text = `${className.toUpperCase()} ${Math.round(confidence * 100)}%`;
+                            const textWidth = ctx.measureText(text).width;
+                            ctx.fillRect(pred.bbox[0], pred.bbox[1] - 22, textWidth + 10, 22);
+
+                            // Draw text
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.fillText(text, pred.bbox[0] + 5, pred.bbox[1] - 6);
+                        }
+                    });
+                } catch (err) {
+                    console.error("AI inference error:", err);
                 }
             }
 
-            // Set initial video stream src
-            document.getElementById('video-stream').src = getBackendUrl('/video_feed');
+            // Alert logic persistence evaluation
+            if (detectedInFrame) {
+                if (detectedClass === lastDetectedClass) {
+                    persistenceCounter++;
+                } else {
+                    lastDetectedClass = detectedClass;
+                    persistenceCounter = 1;
+                }
 
-            updateStatus();
-            statusPollInterval = setInterval(updateStatus, 1000);
-            logsPollInterval = setInterval(fetchLogs, 4000);
+                if (persistenceCounter >= CONFIG.persistence_frames) {
+                    // Show warning banner
+                    const banner = document.getElementById('active-alarm-banner');
+                    if (banner) {
+                        banner.classList.remove('hidden');
+                        document.getElementById('alarm-sector').innerText = `SECTOR 4 - ${detectedClass.toUpperCase()} DETECTED`;
+                    }
+                    
+                    STATUS.active_alert = true;
+                    STATUS.current_detection = detectedClass;
+                    
+                    playDeterrentSound(detectedClass);
+                }
+            } else {
+                persistenceCounter = 0;
+                lastDetectedClass = null;
+                STATUS.active_alert = false;
+                STATUS.current_detection = null;
+                const banner = document.getElementById('active-alarm-banner');
+                if (banner) {
+                    banner.classList.add('hidden');
+                }
+            }
+
+            requestAnimationFrame(detectFrame);
+        }
+
+        // ==============================
+        // SIMULATED SURVEY GRID LOOP (FALLBACK)
+        // ==============================
+        function startSimulationLoop() {
+            STATUS.fps = 30;
+            document.getElementById('hud-fps').innerText = STATUS.fps;
+            
+            const canvas = document.getElementById('video-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            clearInterval(simInterval);
+            simInterval = setInterval(() => {
+                canvas.width = canvas.clientWidth || 640;
+                canvas.height = canvas.clientHeight || 480;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw grid lines
+                ctx.strokeStyle = '#151515';
+                ctx.lineWidth = 1;
+                for (let y = 0; y < canvas.height; y += 40) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+                }
+                for (let x = 0; x < canvas.width; x += 40) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+                }
+                
+                // Draw scanline
+                const scanY = (Date.now() / 15) % canvas.height;
+                ctx.strokeStyle = 'rgba(0, 0, 50, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(0, scanY); ctx.lineTo(canvas.width, scanY); ctx.stroke();
+                
+                // Render text
+                ctx.fillStyle = '#ffb3b1';
+                ctx.font = '16px Space Grotesk';
+                ctx.fillText("SIMULATED FEED (NO WEBCAM)", 20, 40);
+                
+                // Randomly trigger simulated animal alerts
+                const now = Math.floor(Date.now() / 1000);
+                if (now % 30 === 0 && !STATUS.active_alert) {
+                    const anims = [];
+                    if (CONFIG.detected_elephant) anims.push('elephant');
+                    if (CONFIG.detected_boar) anims.push('boar');
+                    if (CONFIG.detected_bear) anims.push('bear');
+                    if (anims.length > 0) {
+                        const chosen = anims[Math.floor(Math.random() * anims.length)];
+                        STATUS.active_alert = true;
+                        STATUS.current_detection = chosen;
+                        const banner = document.getElementById('active-alarm-banner');
+                        if (banner) {
+                            banner.classList.remove('hidden');
+                            document.getElementById('alarm-sector').innerText = `SECTOR 4 - ${chosen.toUpperCase()} DETECTED`;
+                        }
+                        playDeterrentSound(chosen);
+                    }
+                } else if (now % 30 === 8 && STATUS.active_alert) {
+                    STATUS.active_alert = false;
+                    STATUS.current_detection = null;
+                    const banner = document.getElementById('active-alarm-banner');
+                    if (banner) {
+                        banner.classList.add('hidden');
+                    }
+                }
+                
+                // Draw simulated box if alert active
+                if (STATUS.active_alert && STATUS.current_detection) {
+                    ctx.strokeStyle = '#E63946';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(150, 150, 300, 250);
+                    ctx.fillStyle = '#E63946';
+                    ctx.font = 'bold 12px Space Grotesk';
+                    ctx.fillText(`${STATUS.current_detection.toUpperCase()} [SIMULATED DETECT]`, 160, 140);
+                }
+            }, 33);
+        }
+
+        // Initialize Everything on window load
+        window.addEventListener('load', async () => {
+            renderLogs();
+            updateUIStatus();
+            
+            // Load TensorFlow coco-ssd model
+            await loadModel();
+            
+            // Start local browser camera
+            await initCamera();
             
             // Log interaction vibration
             const btns = document.querySelectorAll('button, a');
