@@ -763,11 +763,6 @@ Ready.
                             mappedAnimal = 'bear';
                         } else if (['cow', 'sheep', 'dog', 'cat', 'bird', 'horse', 'pig', 'zebra', 'giraffe'].includes(className) && CONFIG.detected_boar) {
                             mappedAnimal = 'boar';
-                        } else if (className === 'person') {
-                            // Presenter test mode - map person to the first enabled class
-                            if (CONFIG.detected_elephant) mappedAnimal = 'elephant';
-                            else if (CONFIG.detected_boar) mappedAnimal = 'boar';
-                            else if (CONFIG.detected_bear) mappedAnimal = 'bear';
                         }
 
                         if (mappedAnimal && confidence >= CONFIG.confidence_threshold) {
