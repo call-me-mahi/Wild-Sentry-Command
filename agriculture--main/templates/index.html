@@ -207,13 +207,17 @@
             <!-- Camera Controls -->
             <section class="space-y-4">
                 <div class="flex gap-3">
-                    <button id="btn-toggle-camera" onclick="toggleCamera(true)" class="flex-1 bg-white text-black font-label-md text-label-md py-3 rounded-lg flex items-center justify-center gap-2 active:scale-95 transition-transform hover:bg-neutral-200">
+                    <button id="btn-toggle-camera" onclick="toggleCamera(true)" class="flex-1 bg-white text-black font-label-md text-label-md py-3 rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-transform hover:bg-neutral-200">
                         <span class="material-symbols-outlined">play_arrow</span>
-                        RESUME STREAM
+                        RESUME
                     </button>
-                    <button id="btn-pause-camera" onclick="toggleCamera(false)" class="flex-1 border border-white text-white font-label-md text-label-md py-3 rounded-lg flex items-center justify-center gap-2 active:scale-95 transition-transform hover:bg-white/10">
+                    <button id="btn-pause-camera" onclick="toggleCamera(false)" class="flex-1 border border-white text-white font-label-md text-label-md py-3 rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-transform hover:bg-white/10">
                         <span class="material-symbols-outlined">pause</span>
-                        PAUSE STREAM
+                        PAUSE
+                    </button>
+                    <button id="btn-switch-camera" onclick="switchFacingMode()" class="flex-1 border border-white/20 text-white/90 font-label-md text-label-md py-3 rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-transform hover:bg-white/5">
+                        <span class="material-symbols-outlined">flip_camera_android</span>
+                        SWITCH
                     </button>
                 </div>
             </section>
@@ -429,6 +433,7 @@ Ready.
         let simInterval = null;
         let lastSoundTime = 0;
         let cooldownInterval = null;
+        let currentFacingMode = "user";
 
         // Switch Screen Tabs
         function switchTab(tabId) {
@@ -498,19 +503,30 @@ Ready.
             }).join('');
         }
 
+        async function switchFacingMode() {
+            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+            document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Switching camera facingMode to: ${currentFacingMode}`;
+            stopWebcam();
+            await initCamera();
+        }
+
         // Access Browser Webcam
         async function initCamera() {
             const video = document.getElementById('video-stream');
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 640 }, height: { ideal: 480 } }
+                    video: { 
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 },
+                        facingMode: currentFacingMode
+                    }
                 });
                 video.srcObject = localStream;
                 video.onloadedmetadata = () => {
                     video.play();
                     STATUS.camera_connected = true;
                     updateUIStatus();
-                    document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Local webcam connected successfully.`;
+                    document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Local webcam (${currentFacingMode}) connected successfully.`;
                     
                     // Cancel simulation grid loop and start camera AI loop
                     clearInterval(simInterval);
@@ -579,8 +595,17 @@ Ready.
 
             if (soundToPlay) {
                 soundToPlay.currentTime = 0;
+                soundToPlay.loop = true; // Loop audio to play continuously
                 soundToPlay.play().then(() => {
                     document.getElementById('sys-diagnostic-logs').innerText += `\n[ACTION] Sound triggered: ${soundLabel}`;
+                    
+                    // Stop playing automatically after 15 seconds (10 to 20 seconds)
+                    setTimeout(() => {
+                        soundToPlay.pause();
+                        soundToPlay.currentTime = 0;
+                        soundToPlay.loop = false;
+                        document.getElementById('sys-diagnostic-logs').innerText += `\n[ACTION] Sound stopped automatically after 15s.`;
+                    }, 15000);
                 }).catch(err => {
                     console.error("Sound play failed:", err);
                     document.getElementById('sys-diagnostic-logs').innerText += `\n[ERROR] Audio playback blocked by browser. Click anywhere on the page first.`;
