@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+    <title>SENTINEL COMMAND - Crop Protection Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-tertiary-fixed-variant": "#00504a",
+                        "on-primary": "#680011",
+                        "on-error": "#690005",
+                        "surface-variant": "#353534",
+                        "inverse-on-surface": "#313030",
+                        "surface-bright": "#3a3939",
+                        "secondary": "#c6c6c7",
+                        "primary": "#ffb3b1",
+                        "secondary-fixed": "#e2e2e2",
+                        "inverse-surface": "#e5e2e1",
+                        "background": "#0D0D0D",
+                        "primary-fixed-dim": "#ffb3b1",
+                        "on-primary-fixed-variant": "#92001c",
+                        "surface-container-highest": "#353534",
+                        "tertiary-fixed-dim": "#6fd8cc",
+                        "error": "#ffb4ab",
+                        "on-primary-container": "#5b000e",
+                        "on-background": "#e5e2e1",
+                        "on-surface": "#e5e2e1",
+                        "on-tertiary-container": "#00302c",
+                        "on-secondary-container": "#b4b5b5",
+                        "surface-dim": "#131313",
+                        "inverse-primary": "#bb152c",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#8cf4e8",
+                        "outline": "#ab8987",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-secondary": "#2f3131",
+                        "surface-container-low": "#1c1b1b",
+                        "outline-variant": "#5b403f",
+                        "surface": "#161616",
+                        "secondary-container": "#454747",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-tertiary-fixed": "#00201d",
+                        "surface-container": "#201f1f",
+                        "surface-tint": "#ffb3b1",
+                        "on-primary-fixed": "#410007",
+                        "on-secondary-fixed-variant": "#454747",
+                        "primary-container": "#E63946",
+                        "on-tertiary": "#003733",
+                        "primary-fixed": "#ffdad8",
+                        "on-surface-variant": "#e4bebc",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "tertiary-container": "#2fa096",
+                        "on-error-container": "#ffdad6",
+                        "tertiary": "#6fd8cc",
+                        "brand-red": "#E63946"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline-md": ["Space Grotesk"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-lg-mobile": ["Space Grotesk"],
+                        "headline-lg": ["Space Grotesk"],
+                        "label-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "display-lg": ["Space Grotesk"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0D0D0D;
+            color: #e5e2e1;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(22, 22, 22, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .red-glow {
+            box-shadow: 0 0 15px rgba(230, 57, 70, 0.4);
+        }
+        .scanning-line {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #E63946, transparent);
+            position: absolute;
+            width: 100%;
+            top: 0;
+            animation: scan 3s linear infinite;
+        }
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+        @keyframes pulse-red {
+            0%, 100% { background-color: rgba(230, 57, 70, 0.8); box-shadow: 0 0 15px rgba(230, 57, 70, 0.4); }
+            50% { background-color: rgba(230, 57, 70, 1); box-shadow: 0 0 25px rgba(230, 57, 70, 0.7); }
+        }
+        .animate-pulse-red {
+            animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0D0D0D;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #353534;
+            border-radius: 2px;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-on-surface font-body-md selection:bg-primary-container selection:text-white pb-24">
+
+    <!-- Top Navigation Bar -->
+    <header class="fixed top-0 w-full bg-background/85 backdrop-blur-xl border-b border-white/10 flex justify-between items-center px-6 h-16 z-50">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-brand-red animate-pulse" style="font-variation-settings: 'FILL' 1;">security</span>
+            <h1 class="font-headline-md text-headline-md font-bold tracking-tighter text-on-surface uppercase">SENTINEL COMMAND</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="camera-status-indicator" class="flex items-center gap-2 bg-black/60 px-3 py-1 rounded border border-white/10">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500" id="status-dot"></span>
+                <span class="font-label-sm text-label-sm uppercase text-white/80" id="status-text">DISCONNECTED</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Canvas -->
+    <main class="flex-grow pt-20 px-6 max-w-lg mx-auto w-full">
+
+        <!-- Active Intrusion Alarm Banner -->
+        <div id="active-alarm-banner" class="hidden mb-6">
+            <div class="animate-pulse-red p-4 flex items-center justify-between border border-brand-red/35 rounded-lg">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">warning</span>
+                    <div class="flex flex-col">
+                        <span class="text-white font-bold text-label-md tracking-widest uppercase">ACTIVE INTRUSION DETECTED</span>
+                        <span class="text-white/85 text-label-sm font-medium uppercase tracking-tight" id="alarm-sector">SECTOR 4 - PRIMARY PERIMETER</span>
+                    </div>
+                </div>
+                <span class="text-white text-headline-md font-bold" id="alarm-count">LIVE</span>
+            </div>
+        </div>
+
+        <!-- ============================== -->
+        <!-- TAB 1: MONITOR -->
+        <!-- ============================== -->
+        <div id="tab-monitor" class="space-y-6">
+            <!-- Video Feed Card -->
+            <section class="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-white/10 bg-black group shadow-lg">
+                <!-- Video stream feed -->
+                <img id="video-stream" src="/video_feed" class="w-full h-full object-cover" alt="Live Camera Video Stream Feed"/>
+                <div class="scanning-line"></div>
+                
+                <!-- HUD Overlays -->
+                <div class="absolute inset-0 p-4 flex flex-col justify-between pointer-events-none">
+                    <div class="flex justify-between items-start">
+                        <div class="bg-black/70 px-2 py-1 rounded border border-white/10">
+                            <p class="font-label-sm text-label-sm text-white/80">FPS: <span id="hud-fps" class="text-green-400 font-bold">0</span></p>
+                        </div>
+                        <div class="bg-black/70 px-2 py-1 rounded border border-white/10">
+                            <p class="font-label-sm text-label-sm text-white/80 uppercase tracking-widest">LIVE PERIMETER</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-end">
+                        <div class="font-label-sm text-label-sm text-white/60 bg-black/50 px-1.5 py-0.5 rounded">
+                            REC [00:00:00]
+                        </div>
+                        <div class="font-label-sm text-label-sm text-white/60 bg-black/50 px-1.5 py-0.5 rounded uppercase">
+                            GRID AREA 4-B
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Camera Controls -->
+            <section class="space-y-4">
+                <div class="flex gap-3">
+                    <button id="btn-toggle-camera" onclick="toggleCamera(true)" class="flex-1 bg-white text-black font-label-md text-label-md py-3 rounded-lg flex items-center justify-center gap-2 active:scale-95 transition-transform hover:bg-neutral-200">
+                        <span class="material-symbols-outlined">play_arrow</span>
+                        RESUME STREAM
+                    </button>
+                    <button id="btn-pause-camera" onclick="toggleCamera(false)" class="flex-1 border border-white text-white font-label-md text-label-md py-3 rounded-lg flex items-center justify-center gap-2 active:scale-95 transition-transform hover:bg-white/10">
+                        <span class="material-symbols-outlined">pause</span>
+                        PAUSE STREAM
+                    </button>
+                </div>
+            </section>
+
+            <!-- Deterrent Triggers -->
+            <section class="glass-panel p-5 rounded-xl space-y-4 shadow-md">
+                <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                    <h3 class="font-headline-md text-headline-md text-on-surface uppercase tracking-tight">Manual Deterrents</h3>
+                    <span id="cooldown-badge" class="font-label-sm text-label-sm bg-green-500/20 text-green-400 px-2 py-0.5 rounded uppercase tracking-wider">SYSTEM READY</span>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="btn-trigger-bees" onclick="triggerDeterrent('elephant')" class="flex flex-col items-center justify-center gap-2 bg-surface-container-high border border-white/10 p-4 rounded-xl hover:bg-surface-variant transition-colors active:scale-95 duration-100 group">
+                        <span class="material-symbols-outlined text-primary text-3xl group-hover:scale-110 transition-transform">volume_up</span>
+                        <span class="font-label-md text-label-md text-white uppercase">Bee Buzz</span>
+                    </button>
+                    <button id="btn-trigger-tiger" onclick="triggerDeterrent('boar')" class="flex flex-col items-center justify-center gap-2 bg-surface-container-high border border-white/10 p-4 rounded-xl hover:bg-surface-variant transition-colors active:scale-95 duration-100 group">
+                        <span class="material-symbols-outlined text-primary text-3xl group-hover:scale-110 transition-transform">pets</span>
+                        <span class="font-label-md text-label-md text-white uppercase">Tiger Growl</span>
+                    </button>
+                </div>
+                <button id="btn-stop-sounds" onclick="stopAllSounds()" class="w-full bg-brand-red text-white py-4 rounded-xl font-headline-md text-headline-md flex items-center justify-center gap-3 red-glow active:scale-[0.98] transition-all hover:bg-red-700">
+                    <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cancel</span>
+                    STOP ALL SOUNDS
+                </button>
+            </section>
+        </div>
+
+        <!-- ============================== -->
+        <!-- TAB 2: LOGS -->
+        <!-- ============================== -->
+        <div id="tab-logs" class="hidden space-y-4">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
+                <h3 class="font-headline-md text-headline-md text-on-surface uppercase tracking-tight">Security Alert History</h3>
+                <button onclick="fetchLogs()" class="active:scale-95 transition-transform">
+                    <span class="material-symbols-outlined text-white/60 hover:text-white">refresh</span>
+                </button>
+            </div>
+            
+            <div id="logs-container" class="space-y-4">
+                <!-- Log entries will be populated dynamically -->
+                <div class="text-center py-8 text-white/40">Loading historical logs...</div>
+            </div>
+        </div>
+
+        <!-- ============================== -->
+        <!-- TAB 3: CONTROL (SETTINGS) -->
+        <!-- ============================== -->
+        <div id="tab-control" class="hidden space-y-6">
+            <h3 class="font-headline-md text-headline-md text-on-surface uppercase tracking-tight border-b border-white/10 pb-3 mb-4">Detection Configuration</h3>
+            
+            <form id="settings-form" oninput="saveSettings()" class="space-y-6">
+                <!-- Confidence Threshold -->
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <label class="font-label-md text-label-md text-white/80 uppercase">Confidence Threshold</label>
+                        <span id="label-conf-val" class="font-mono text-green-400 font-bold">50%</span>
+                    </div>
+                    <input type="range" id="input-conf" name="confidence_threshold" min="0.1" max="0.9" step="0.05" value="0.5" class="w-full h-1 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-brand-red"/>
+                    <p class="text-xs text-white/40">Minimum model certainty required to validate animal intrusions.</p>
+                </div>
+
+                <!-- Cooldown Duration -->
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <label class="font-label-md text-label-md text-white/80 uppercase">Alert Cooldown (Seconds)</label>
+                        <span id="label-cooldown-val" class="font-mono text-green-400 font-bold">10s</span>
+                    </div>
+                    <input type="range" id="input-cooldown" name="cooldown_duration" min="2" max="60" step="1" value="10" class="w-full h-1 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-brand-red"/>
+                    <p class="text-xs text-white/40">Delay period before another automated deterrent sequence is triggered.</p>
+                </div>
+
+                <!-- Frame Persistence -->
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <label class="font-label-md text-label-md text-white/80 uppercase">Confirmation Frames</label>
+                        <span id="label-persistence-val" class="font-mono text-green-400 font-bold">15f</span>
+                    </div>
+                    <input type="range" id="input-persistence" name="persistence_frames" min="3" max="50" step="1" value="15" class="w-full h-1 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-brand-red"/>
+                    <p class="text-xs text-white/40">Number of consecutive frames the animal must remain in vision to sound the alarm.</p>
+                </div>
+
+                <!-- Active Detections Checkbox -->
+                <div class="space-y-3 pt-4 border-t border-white/5">
+                    <label class="block font-label-md text-label-md text-white/80 uppercase mb-2">Monitored Classes</label>
+                    
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="check-elephant" name="detected_elephant" checked class="rounded border-white/20 bg-background text-brand-red focus:ring-brand-red"/>
+                            <span class="text-body-md text-white">Elephant (Triggers Bees)</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="check-boar" name="detected_boar" checked class="rounded border-white/20 bg-background text-brand-red focus:ring-brand-red"/>
+                            <span class="text-body-md text-white">Wild Boar (Triggers Tiger)</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="check-bear" name="detected_bear" checked class="rounded border-white/20 bg-background text-brand-red focus:ring-brand-red"/>
+                            <span class="text-body-md text-white">Bear (Triggers Tiger)</span>
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- ============================== -->
+        <!-- TAB 4: SYSTEM INFO -->
+        <!-- ============================== -->
+        <div id="tab-system" class="hidden space-y-6">
+            <h3 class="font-headline-md text-headline-md text-on-surface uppercase tracking-tight border-b border-white/10 pb-3 mb-4">System Telemetry</h3>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-surface/40 p-4 border border-white/5 rounded-lg">
+                    <p class="text-[10px] text-white/45 uppercase tracking-wider">Vision Engine</p>
+                    <p class="font-mono text-white font-bold text-sm">YOLOv8 Nano</p>
+                </div>
+                <div class="bg-surface/40 p-4 border border-white/5 rounded-lg">
+                    <p class="text-[10px] text-white/45 uppercase tracking-wider">Webcam status</p>
+                    <p id="tel-camera" class="font-mono text-green-400 font-bold text-sm">Connected</p>
+                </div>
+                <div class="bg-surface/40 p-4 border border-white/5 rounded-lg">
+                    <p class="text-[10px] text-white/45 uppercase tracking-wider">Sound deterrents</p>
+                    <p class="font-mono text-white font-bold text-sm">Winsound (Win32)</p>
+                </div>
+                <div class="bg-surface/40 p-4 border border-white/5 rounded-lg">
+                    <p class="text-[10px] text-white/45 uppercase tracking-wider">Host Server</p>
+                    <p class="font-mono text-white font-bold text-sm">Flask (Python)</p>
+                </div>
+            </div>
+
+            <div class="glass-panel p-4 rounded-xl space-y-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-white/80">Diagnostic Output</span>
+                </div>
+                <pre class="text-[11px] font-mono text-green-300 bg-black p-3 rounded-lg overflow-x-auto whitespace-pre-wrap max-h-48" id="sys-diagnostic-logs">
+Initializing YOLOv8n network model...
+Pretrained weights found.
+Camera opened at input slot [0].
+Web server running at http://127.0.0.1:5000/
+System state: NOMINAL. Monitoring actively.
+                </pre>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Bottom Navigation Bar (Tabs Selector) -->
+    <nav class="fixed bottom-0 left-0 w-full bg-surface/90 backdrop-blur-2xl border-t border-white/10 flex justify-around items-center h-20 px-4 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+        <a id="nav-monitor" onclick="switchTab('monitor')" class="flex flex-col items-center justify-center text-primary font-bold shadow-[0_0_15px_rgba(255,179,177,0.3)] transition-all duration-300 ease-in-out cursor-pointer" href="#">
+            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">visibility</span>
+            <span class="font-label-md text-label-md mt-1">MONITOR</span>
+        </a>
+        <a id="nav-logs" onclick="switchTab('logs')" class="flex flex-col items-center justify-center text-on-surface/50 hover:bg-white/5 transition-all duration-300 ease-in-out cursor-pointer" href="#">
+            <span class="material-symbols-outlined">format_list_bulleted</span>
+            <span class="font-label-md text-label-md mt-1">LOGS</span>
+        </a>
+        <a id="nav-control" onclick="switchTab('control')" class="flex flex-col items-center justify-center text-on-surface/50 hover:bg-white/5 transition-all duration-300 ease-in-out cursor-pointer" href="#">
+            <span class="material-symbols-outlined">settings_input_component</span>
+            <span class="font-label-md text-label-md mt-1">CONTROL</span>
+        </a>
+        <a id="nav-system" onclick="switchTab('system')" class="flex flex-col items-center justify-center text-on-surface/50 hover:bg-white/5 transition-all duration-300 ease-in-out cursor-pointer" href="#">
+            <span class="material-symbols-outlined">terminal</span>
+            <span class="font-label-md text-label-md mt-1">SYSTEM</span>
+        </a>
+    </nav>
+
+    <!-- UI Logic & Backend Sync -->
+    <script>
+        let activeTab = 'monitor';
+        let statusPollInterval;
+        let logsPollInterval;
+
+        // Switch Screen Tabs
+        function switchTab(tabId) {
+            activeTab = tabId;
+            const tabs = ['monitor', 'logs', 'control', 'system'];
+            
+            tabs.forEach(t => {
+                const tabEl = document.getElementById(`tab-${t}`);
+                const navEl = document.getElementById(`nav-${t}`);
+                
+                if (t === tabId) {
+                    tabEl.classList.remove('hidden');
+                    navEl.classList.add('text-primary', 'font-bold');
+                    navEl.classList.remove('text-on-surface/50');
+                    navEl.style.textShadow = '0 0 15px rgba(255,179,177,0.3)';
+                } else {
+                    tabEl.classList.add('hidden');
+                    navEl.classList.remove('text-primary', 'font-bold');
+                    navEl.classList.add('text-on-surface/50');
+                    navEl.style.textShadow = 'none';
+                }
+            });
+
+            if (tabId === 'logs') {
+                fetchLogs();
+            }
+        }
+
+        // Fetch Logs from Backend
+        async function fetchLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                const logs = await response.json();
+                const container = document.getElementById('logs-container');
+                
+                if (logs.length === 0) {
+                    container.innerHTML = `<div class="text-center py-8 text-white/40 uppercase font-mono">No Logs Available</div>`;
+                    return;
+                }
+
+                container.innerHTML = logs.map((log, index) => {
+                    const isSystemInit = log.id === "SYS-INIT";
+                    const statusClass = isSystemInit ? "bg-white/10 text-white" : "bg-brand-red/10 text-brand-red";
+                    const glowClass = (index === 0 && !isSystemInit) ? "glass-panel p-4 relative overflow-hidden red-glow" : "bg-surface/30 border border-white/5 p-4";
+                    const scanline = (index === 0 && !isSystemInit) ? `<div class="scanning-line"></div>` : '';
+                    
+                    return `
+                        <div class="${glowClass} transition-all hover:bg-surface/40">
+                            ${scanline}
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex flex-col">
+                                    <span class="text-on-surface/40 font-mono text-[10px] uppercase">[${log.id}]</span>
+                                    <h3 class="font-body-lg text-body-lg text-white/95 font-semibold leading-tight">${log.animal}</h3>
+                                </div>
+                                <span class="text-on-surface/40 font-mono text-[12px]">${log.timestamp}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mt-2 mb-2">
+                                <div>
+                                    <p class="text-[9px] text-on-surface/40 uppercase tracking-wider">Confidence</p>
+                                    <p class="text-white font-bold text-sm">${log.confidence}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-on-surface/40 uppercase tracking-wider">Status</p>
+                                    <p class="text-white font-bold text-sm">${log.status}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between pt-2 border-t border-white/5 text-[10px]">
+                                <span class="px-2 py-0.5 ${statusClass} font-bold uppercase tracking-tighter">${log.action}</span>
+                                <span class="text-on-surface/40 italic">Active deterrent sequence</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error("Failed to fetch logs:", err);
+            }
+        }
+
+        // Toggle Video Stream on/off
+        async function toggleCamera(enable) {
+            try {
+                await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ camera_enabled: enable })
+                });
+                const img = document.getElementById('video-stream');
+                if (enable) {
+                    img.src = "/video_feed";
+                    document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Video stream activated.`;
+                } else {
+                    img.src = "";
+                    document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Video stream paused.`;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Trigger manual deterrent
+        async function triggerDeterrent(animal) {
+            try {
+                const response = await fetch('/api/trigger', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ animal: animal })
+                });
+                const res = await response.json();
+                document.getElementById('sys-diagnostic-logs').innerText += `\n[ACTION] Manual deterrent: ${res.message}`;
+                fetchLogs();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Stop all sounds
+        async function stopAllSounds() {
+            try {
+                const response = await fetch('/api/stop', { method: 'POST' });
+                const res = await response.json();
+                document.getElementById('sys-diagnostic-logs').innerText += `\n[ACTION] Stopped all active sounds.`;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Save settings from form input
+        async function saveSettings() {
+            const confidence = parseFloat(document.getElementById('input-conf').value);
+            const cooldown = parseInt(document.getElementById('input-cooldown').value);
+            const persistence = parseInt(document.getElementById('input-persistence').value);
+            const elephant = document.getElementById('check-elephant').checked;
+            const boar = document.getElementById('check-boar').checked;
+            const bear = document.getElementById('check-bear').checked;
+
+            // Update range indicators
+            document.getElementById('label-conf-val').innerText = `${Math.round(confidence * 100)}%`;
+            document.getElementById('label-cooldown-val').innerText = `${cooldown}s`;
+            document.getElementById('label-persistence-val').innerText = `${persistence}f`;
+
+            try {
+                await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        confidence_threshold: confidence,
+                        cooldown_duration: cooldown,
+                        persistence_frames: persistence,
+                        detected_elephant: elephant,
+                        detected_boar: boar,
+                        detected_bear: bear
+                    })
+                });
+            } catch (err) {
+                console.error("Failed to save settings:", err);
+            }
+        }
+
+        // Load configuration to UI elements
+        function applyConfigToUI(config) {
+            document.getElementById('input-conf').value = config.confidence_threshold;
+            document.getElementById('input-cooldown').value = config.cooldown_duration;
+            document.getElementById('input-persistence').value = config.persistence_frames;
+            
+            document.getElementById('check-elephant').checked = config.detected_elephant;
+            document.getElementById('check-boar').checked = config.detected_boar;
+            document.getElementById('check-bear').checked = config.detected_bear;
+
+            document.getElementById('label-conf-val').innerText = `${Math.round(config.confidence_threshold * 100)}%`;
+            document.getElementById('label-cooldown-val').innerText = `${config.cooldown_duration}s`;
+            document.getElementById('label-persistence-val').innerText = `${config.persistence_frames}f`;
+        }
+
+        // Periodically poll backend status
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+
+                // 1. Camera Connection HUD Status
+                const statusDot = document.getElementById('status-dot');
+                const statusText = document.getElementById('status-text');
+                const telCamera = document.getElementById('tel-camera');
+
+                if (status.camera_connected) {
+                    statusDot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
+                    statusText.innerText = "CONNECTED";
+                    statusText.className = "font-label-sm text-label-sm uppercase text-green-400";
+                    telCamera.innerText = "Connected";
+                    telCamera.className = "font-mono text-green-400 font-bold text-sm";
+                } else {
+                    statusDot.className = "w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse";
+                    statusText.innerText = "SIMULATING";
+                    statusText.className = "font-label-sm text-label-sm uppercase text-yellow-500";
+                    telCamera.innerText = "Simulation Active";
+                    telCamera.className = "font-mono text-yellow-500 font-bold text-sm";
+                }
+
+                // 2. Active Alert banner
+                const alarmBanner = document.getElementById('active-alarm-banner');
+                if (status.active_alert) {
+                    alarmBanner.classList.remove('hidden');
+                    document.getElementById('alarm-sector').innerText = `SECTOR 4 - ${status.current_detection.toUpperCase()} DETECTED`;
+                } else {
+                    alarmBanner.classList.add('hidden');
+                }
+
+                // 3. FPS telemetry
+                document.getElementById('hud-fps').innerText = status.fps;
+
+                // 4. Cooldown status trigger muter
+                const cdBadge = document.getElementById('cooldown-badge');
+                const triggerBees = document.getElementById('btn-trigger-bees');
+                const triggerTiger = document.getElementById('btn-trigger-tiger');
+
+                if (status.cooldown_active) {
+                    cdBadge.innerText = `COOLDOWN: ${status.cooldown_remaining}S`;
+                    cdBadge.className = "font-label-sm text-label-sm bg-brand-red/20 text-brand-red px-2 py-0.5 rounded uppercase tracking-wider";
+                    triggerBees.disabled = true;
+                    triggerTiger.disabled = true;
+                    triggerBees.classList.add('opacity-40');
+                    triggerTiger.classList.add('opacity-40');
+                } else {
+                    cdBadge.innerText = "SYSTEM READY";
+                    cdBadge.className = "font-label-sm text-label-sm bg-green-500/20 text-green-400 px-2 py-0.5 rounded uppercase tracking-wider";
+                    triggerBees.disabled = false;
+                    triggerTiger.disabled = false;
+                    triggerBees.classList.remove('opacity-40');
+                    triggerTiger.classList.remove('opacity-40');
+                }
+
+                // Load initial settings once on startup
+                if (!window.configLoaded) {
+                    applyConfigToUI(status.config);
+                    window.configLoaded = true;
+                }
+            } catch (err) {
+                console.error("Status polling failed:", err);
+            }
+        }
+
+        // Initialize polling intervals
+        window.addEventListener('load', () => {
+            updateStatus();
+            statusPollInterval = setInterval(updateStatus, 1000);
+            logsPollInterval = setInterval(fetchLogs, 4000);
+            
+            // Log interaction vibration
+            const btns = document.querySelectorAll('button, a');
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (window.navigator && window.navigator.vibrate) {
+                        window.navigator.vibrate(10);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
