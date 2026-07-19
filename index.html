@@ -510,31 +510,55 @@ Ready.
             await initCamera();
         }
 
-        // Access Browser Webcam
+        // Access Browser Webcam (Robust Multi-Stage Fallback)
         async function initCamera() {
             const video = document.getElementById('video-stream');
             try {
+                // Try 1: Ideal facingMode (Best for mobile front/back camera selection)
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         width: { ideal: 640 }, 
                         height: { ideal: 480 },
-                        facingMode: currentFacingMode
+                        facingMode: { ideal: currentFacingMode }
                     }
                 });
-                video.srcObject = localStream;
-                video.onloadedmetadata = () => {
-                    video.play();
-                    STATUS.camera_connected = true;
-                    updateUIStatus();
-                    document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Local webcam (${currentFacingMode}) connected successfully.`;
-                    
-                    // Cancel simulation grid loop and start camera AI loop
-                    clearInterval(simInterval);
-                    startDetectionLoop();
-                };
-            } catch (err) {
-                console.error("Camera connection failed:", err);
-                document.getElementById('sys-diagnostic-logs').innerText += `\n[WARNING] Webcam not accessible: ${err.message}. Operating in simulation mode.`;
+            } catch (firstErr) {
+                console.warn("Try 1 (facingMode constraints) failed:", firstErr);
+                try {
+                    // Try 2: Generic width/height (Ideal for laptop/desktop front webcams)
+                    localStream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: { ideal: 640 }, height: { ideal: 480 } }
+                    });
+                } catch (secondErr) {
+                    console.warn("Try 2 (generic constraints) failed:", secondErr);
+                    try {
+                        // Try 3: Raw video fallback
+                        localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    } catch (thirdErr) {
+                        console.error("Try 3 (raw video) failed:", thirdErr);
+                        localStream = null;
+                    }
+                }
+            }
+
+            if (localStream) {
+                try {
+                    video.srcObject = localStream;
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        STATUS.camera_connected = true;
+                        updateUIStatus();
+                        document.getElementById('sys-diagnostic-logs').innerText += `\n[INFO] Webcam (${currentFacingMode}) connected successfully.`;
+                        
+                        // Cancel simulation grid loop and start camera AI loop
+                        clearInterval(simInterval);
+                        startDetectionLoop();
+                    };
+                } catch (playErr) {
+                    console.error("Failed to play video elements:", playErr);
+                }
+            } else {
+                document.getElementById('sys-diagnostic-logs').innerText += `\n[WARNING] Webcam not accessible. Operating in simulation mode.`;
                 STATUS.camera_connected = false;
                 updateUIStatus();
                 startSimulationLoop();
