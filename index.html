@@ -419,21 +419,9 @@ Ready.
             }
         ];
 
-        // HTML5 Audio Elements for sound play out of local speakers
-        const beeAudio = new Audio('agriculture--main/sounds/bees.wav');
-        const tigerAudio = new Audio('agriculture--main/sounds/tiger.wav');
-        
-        // Setup CDN fallback sources in case local files are missing/not hosted statically
-        beeAudio.addEventListener('error', () => {
-            if (!beeAudio.src.includes('mixkit')) {
-                beeAudio.src = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav';
-            }
-        });
-        tigerAudio.addEventListener('error', () => {
-            if (!tigerAudio.src.includes('mixkit')) {
-                tigerAudio.src = 'https://assets.mixkit.co/active_storage/sfx/2552/2552-84.wav';
-            }
-        });
+        // HTML5 Audio Elements preloaded from DOM with native fallbacks
+        const beeAudio = document.getElementById('sound-bees');
+        const tigerAudio = document.getElementById('sound-tiger');
 
         let localStream = null;
         let cocoModel = null;
@@ -938,5 +926,14 @@ Ready.
             });
         });
     </script>
+    <!-- Hidden preloaded audio elements with native fallbacks -->
+    <audio id="sound-bees" preload="auto">
+        <source src="/agriculture--main/sounds/bees.wav" type="audio/wav">
+        <source src="https://www.soundjay.com/misc/sounds/bee-buzz-1.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="sound-tiger" preload="auto">
+        <source src="/agriculture--main/sounds/tiger.wav" type="audio/wav">
+        <source src="https://www.soundjay.com/nature/sounds/tiger-growl-01.mp3" type="audio/mpeg">
+    </audio>
 </body>
 </html>
