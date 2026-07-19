@@ -427,6 +427,8 @@ Ready.
         let cocoModel = null;
         let isDetecting = false;
         let simInterval = null;
+        let lastSoundTime = 0;
+        let cooldownInterval = null;
 
         // Switch Screen Tabs
         function switchTab(tabId) {
@@ -651,8 +653,6 @@ Ready.
         }
 
         // Cooldown UI handler loop
-        let lastSoundTime = 0;
-        let cooldownInterval = null;
 
         function updateCooldownUI() {
             clearInterval(cooldownInterval);
